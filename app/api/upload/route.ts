@@ -33,6 +33,28 @@ async function deleteFileIfExists(filepath: string): Promise<void> {
   }
 }
 
+/** Return a user-friendly error response for Groq API errors */
+function getGroqErrorResponse(error: unknown): { message: string; status: number } {
+  if (
+    error &&
+    typeof error === "object" &&
+    "status" in error &&
+    error.status === 401
+  ) {
+    return {
+      message:
+        "Invalid Groq API key. Please update your GROQ_API_KEY in the .env.local file. " +
+        "Get a new key at https://console.groq.com",
+      status: 401,
+    };
+  }
+  return {
+    message:
+      "Failed to analyze the medical report. The AI service is temporarily unavailable. Please try again later.",
+    status: 503,
+  };
+}
+
 export async function POST(req: NextRequest) {
   // Validate required environment variables
   if (!process.env.LLAMA_CLOUD_API_KEY) {
@@ -91,13 +113,8 @@ export async function POST(req: NextRequest) {
       processedReport = await processMedicalReport(documents);
     } catch (groqError) {
       console.error("Groq analysis error:", groqError);
-      return NextResponse.json(
-        {
-          error:
-            "Failed to analyze the medical report. The AI service is temporarily unavailable. Please try again later.",
-        },
-        { status: 503 }
-      );
+      const { message, status } = getGroqErrorResponse(groqError);
+      return NextResponse.json({ error: message }, { status });
     }
     return NextResponse.json(
       { success: true, report: processedReport },
@@ -189,13 +206,8 @@ export async function POST(req: NextRequest) {
       processedReport = await processMedicalReport(documents);
     } catch (groqError) {
       console.error("Groq analysis error:", groqError);
-      return NextResponse.json(
-        {
-          error:
-            "Failed to analyze the medical report. The AI service is temporarily unavailable. Please try again later.",
-        },
-        { status: 503 }
-      );
+      const { message, status } = getGroqErrorResponse(groqError);
+      return NextResponse.json({ error: message }, { status });
     }
 
     return NextResponse.json(
